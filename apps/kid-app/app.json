@@ -1,0 +1,37 @@
+{
+  "expo": {
+    "name": "Learna",
+    "slug": "learna-kid-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a472a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.learna.kidapp"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a472a"
+      },
+      "package": "com.learna.kidapp"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-av",
+        {
+          "microphonePermission": "Allow Learna to hear your voice."
+        }
+      ]
+    ]
+  }
+}
