@@ -4,92 +4,170 @@
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Profiles table (extends auth.users)
-CREATE TABLE public.profiles (
-    id uuid PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at timestamptz DEFAULT now(),
-    updated_at timestamptz DEFAULT now()
+-- PROFILES (extends auth.users)
+CREATE TABLE profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    full_name TEXT,
+    avatar_url TEXT
 );
 
--- Children table
-CREATE TABLE public.children (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    parent_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    name text NOT NULL,
-    age_group text NOT NULL CHECK (age_group IN ('toddler', 'young', 'older')),
-    avatar_seed text,
-    created_at timestamptz DEFAULT now()
+-- CHILDREN (child accounts under parent)
+CREATE TABLE children (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    parent_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    name TEXT NOT NULL,
+    age_group TEXT NOT NULL CHECK (age_group IN ('toddler', 'young', 'older')),
+    avatar_seed TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Conversations table
-CREATE TABLE public.conversations (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    child_id uuid NOT NULL REFERENCES public.children(id) ON DELETE CASCADE,
-    started_at timestamptz DEFAULT now(),
-    ended_at timestamptz
+-- CONVERSATIONS
+CREATE TABLE conversations (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    child_id UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ
 );
 
--- Messages table
-CREATE TABLE public.messages (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    conversation_id uuid NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
-    role text NOT NULL CHECK (role IN ('child', 'learna')),
-    content text NOT NULL,
-    created_at timestamptz DEFAULT now()
+-- MESSAGES
+CREATE TABLE messages (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('child', 'learna')),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Safety events table
-CREATE TABLE public.safety_events (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    child_id uuid NOT NULL REFERENCES public.children(id) ON DELETE CASCADE,
-    conversation_id uuid REFERENCES public.conversations(id) ON DELETE SET NULL,
-    severity text NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
-    category text NOT NULL,
-    details jsonb DEFAULT '{}',
-    notified_parent boolean DEFAULT false,
-    resolved boolean DEFAULT false,
-    created_at timestamptz DEFAULT now()
+-- SAFETY EVENTS
+CREATE TABLE safety_events (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    child_id UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    conversation_id UUID REFERENCES conversations(id) ON DELETE SET NULL,
+    severity TEXT NOT NULL CHECK (severity IN ('low', 'medium', 'high', 'critical')),
+    category TEXT NOT NULL,
+    details JSONB DEFAULT '{}',
+    notified_parent BOOLEAN DEFAULT FALSE,
+    resolved BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Parent notifications table
-CREATE TABLE public.parent_notifications (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    parent_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    type text NOT NULL,
-    title text NOT NULL,
-    body text,
-    data jsonb DEFAULT '{}',
-    read boolean DEFAULT false,
-    created_at timestamptz DEFAULT now()
+-- PARENT NOTIFICATIONS
+CREATE TABLE parent_notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    parent_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT,
+    data JSONB DEFAULT '{}',
+    read BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Milestone photos table
-CREATE TABLE public.milestone_photos (
-    id uuid PRIMARY KEY DEFAULT uuid_generate_v4(),
-    child_id uuid NOT NULL REFERENCES public.children(id) ON DELETE CASCADE,
-    storage_path text NOT NULL,
-    caption text,
-    created_at timestamptz DEFAULT now()
+-- MILESTONE PHOTOS (storage only - NO AI analysis)
+CREATE TABLE milestone_photos (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    child_id UUID NOT NULL REFERENCES children(id) ON DELETE CASCADE,
+    storage_path TEXT NOT NULL,
+    caption TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Indexes for performance
-CREATE INDEX idx_children_parent ON public.children(parent_id);
-CREATE INDEX idx_conversations_child ON public.conversations(child_id);
-CREATE INDEX idx_messages_conversation ON public.messages(conversation_id);
-CREATE INDEX idx_safety_events_child ON public.safety_events(child_id);
-CREATE INDEX idx_notifications_parent ON public.parent_notifications(parent_id);
-CREATE INDEX idx_photos_child ON public.milestone_photos(child_id);
+-- INDEXES
+CREATE INDEX idx_children_parent ON children(parent_id);
+CREATE INDEX idx_conversations_child ON conversations(child_id);
+CREATE INDEX idx_messages_conversation ON messages(conversation_id);
+CREATE INDEX idx_safety_events_child ON safety_events(child_id);
+CREATE INDEX idx_parent_notifications_parent ON parent_notifications(parent_id);
 
--- Trigger to create profile on user signup
+-- RLS POLICIES
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE children ENABLE ROW LEVEL SECURITY;
+ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE safety_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE parent_notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE milestone_photos ENABLE ROW LEVEL SECURITY;
+
+-- Profiles: Users can only see their own profile
+CREATE POLICY "Users can view own profile" ON profiles
+    FOR SELECT USING (auth.uid() = id);
+
+CREATE POLICY "Users can update own profile" ON profiles
+    FOR UPDATE USING (auth.uid() = id);
+
+-- Children: Parents can only see their own children
+CREATE POLICY "Parents can view own children" ON children
+    FOR SELECT USING (parent_id = (SELECT id FROM profiles WHERE auth.uid() = id));
+
+CREATE POLICY "Parents can insert own children" ON children
+    FOR INSERT WITH CHECK (parent_id = (SELECT id FROM profiles WHERE auth.uid() = id));
+
+CREATE POLICY "Parents can update own children" ON children
+    FOR UPDATE USING (parent_id = (SELECT id FROM profiles WHERE auth.uid() = id));
+
+CREATE POLICY "Parents can delete own children" ON children
+    FOR DELETE USING (parent_id = (SELECT id FROM profiles WHERE auth.uid() = id));
+
+-- Conversations: Parents can see their children's conversations
+CREATE POLICY "Parents can view conversations" ON conversations
+    FOR SELECT USING (
+        child_id IN (SELECT id FROM children WHERE parent_id = (SELECT id FROM profiles WHERE auth.uid() = id))
+    );
+
+-- Messages: Same as conversations
+CREATE POLICY "Parents can view messages" ON messages
+    FOR SELECT USING (
+        conversation_id IN (
+            SELECT id FROM conversations WHERE child_id IN (
+                SELECT id FROM children WHERE parent_id = (SELECT id FROM profiles WHERE auth.uid() = id)
+            )
+        )
+    );
+
+-- Safety Events: Parents can see their children's safety events
+CREATE POLICY "Parents can view safety events" ON safety_events
+    FOR SELECT USING (
+        child_id IN (SELECT id FROM children WHERE parent_id = (SELECT id FROM profiles WHERE auth.uid() = id))
+    );
+
+CREATE POLICY "Service role can insert safety events" ON safety_events
+    FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Service role can update safety events" ON safety_events
+    FOR UPDATE USING (true);
+
+-- Parent Notifications: Users can only see their own
+CREATE POLICY "Users can view own notifications" ON parent_notifications
+    FOR SELECT USING (parent_id = (SELECT id FROM profiles WHERE auth.uid() = id));
+
+CREATE POLICY "Users can update own notifications" ON parent_notifications
+    FOR UPDATE USING (parent_id = (SELECT id FROM profiles WHERE auth.uid() = id));
+
+-- Milestone Photos: Parents can manage their children's photos
+CREATE POLICY "Parents can view photos" ON milestone_photos
+    FOR SELECT USING (
+        child_id IN (SELECT id FROM children WHERE parent_id = (SELECT id FROM profiles WHERE auth.uid() = id))
+    );
+
+CREATE POLICY "Parents can insert photos" ON milestone_photos
+    FOR INSERT WITH CHECK (
+        child_id IN (SELECT id FROM children WHERE parent_id = (SELECT id FROM profiles WHERE auth.uid() = id))
+    );
+
+-- Function to create profile on user signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS trigger AS $$
+RETURNS TRIGGER AS $$
 BEGIN
-    INSERT INTO public.profiles (id, created_at, updated_at)
-    VALUES (new.id, now(), now());
-    RETURN new;
+    INSERT INTO public.profiles (id, full_name)
+    VALUES (NEW.id, NEW.raw_user_meta_data->>'full_name');
+    RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- Trigger for new user signup
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
     AFTER INSERT ON auth.users
     FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
