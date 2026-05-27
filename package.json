@@ -1,16 +1,5 @@
 {
   "name": "learna-app",
   "version": "1.0.0",
-  "private": true,
-  "workspaces": [
-    "apps/*"
-  ],
-  "scripts": {
-    "kid-app:start": "npm run start --workspace=learna-kid-app",
-    "kid-app:android": "npm run android --workspace=learna-kid-app",
-    "kid-app:ios": "npm run ios --workspace=learna-kid-app",
-    "parent-app:start": "npm run start --workspace=learna-parent-app",
-    "parent-app:android": "npm run android --workspace=learna-parent-app",
-    "parent-app:ios": "npm run ios --workspace=learna-parent-app"
-  }
+  "private": true
 }
