@@ -9,6 +9,8 @@ import {
 } from 'react-native';
 import { Audio } from 'expo-av';
 import { supabase } from '../lib/supabase';
+import { sendChatMessage } from '../services/chat';
+import { speak } from '../services/speech';
 
 const { width } = Dimensions.get('window');
 
@@ -266,46 +268,33 @@ export default function KidApp() {
   };
 
   const getLearnaResponse = async (childMessage) => {
-    const personality = getLearnaPersonality(ageGroup);
-    const ageConfig = AGE_GROUPS[ageGroup];
-
-    // In production, this would call an edge function with OpenRouter
-    // For now, use simple responses based on keywords
-
-    const message = childMessage.toLowerCase();
-
-    // Simple keyword matching
-    if (message.includes('sad') || message.includes('upset') || message.includes('cry')) {
-      return "Oh no! I'm sorry you're feeling sad. Do you want to talk about it? 🌧️";
+    // Use the real AI
+    try {
+      const result = await sendChatMessage(
+        childId || 'demo',
+        childMessage,
+        ageGroup,
+        'Friend', // In real app, get from child profile
+        conversationId || 'demo-conversation',
+        conversation
+      );
+      return result.response;
+    } catch (error) {
+      console.error('AI error, using fallback:', error);
+      const personality = getLearnaPersonality(ageGroup);
+      const randomQuestion = personality.questions[Math.floor(Math.random() * personality.questions.length)];
+      return randomQuestion;
     }
-    if (message.includes('happy') || message.includes('excited') || message.includes('fun')) {
-      return "Yay! That makes me happy too! 😄 Tell me more!";
-    }
-    if (message.includes('scared') || message.includes('afraid') || message.includes('monster')) {
-      return "You know what? I'm here with you and you're safe. Want me to tell you about a brave knight? 🛡️";
-    }
-    if (message.includes('friend') || message.includes('play')) {
-      return "You bet we can play! I'm your friend! 💚 What do you want to do?";
-    }
-    if (message.includes('story')) {
-      return "Once upon a time, in a magical forest...";
-    }
-    if (message.includes('animal') || message.includes('dog') || message.includes('cat')) {
-      return "Animals are the best! Do you have a favorite animal? 🦁";
-    }
-
-    // Default - ask a follow-up question
-    const randomQuestion = personality.questions[Math.floor(Math.random() * personality.questions.length)];
-    return randomQuestion;
   };
 
   const speakMessage = async (text) => {
     setIsSpeaking(true);
-    // In production, call ElevenLabs TTS here
-    // For demo, just simulate speaking
-    setTimeout(() => {
-      setIsSpeaking(false);
-    }, 2000);
+    try {
+      await speak(text);
+    } catch (error) {
+      console.log('Speech error:', error);
+    }
+    setIsSpeaking(false);
   };
 
   // Render tree character based on stage
