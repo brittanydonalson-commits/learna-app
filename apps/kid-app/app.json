@@ -3,7 +3,6 @@
     "name": "Learna",
     "slug": "learna-kid-app",
     "version": "1.0.0",
-    "sdkVersion": "54.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -23,9 +22,6 @@
         "backgroundColor": "#1a472a"
       },
       "package": "com.learna.kidapp"
-    },
-    "web": {
-      "favicon": "./assets/favicon.png"
     },
     "extra": {
       "EXPO_PUBLIC_OPENROUTER_API_KEY": "",
