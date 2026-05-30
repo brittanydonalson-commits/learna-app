@@ -174,9 +174,9 @@ export const LearnaTree: React.FC<LearnaTreeProps> = ({
           styles.tree,
           {
             transform: [
-              { scale: 1 + bounceAnim.interpolate({
+              { scale: bounceAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, 0.1],
+                outputRange: [1, 1.1],
               })},
               { rotate: swayAnim.interpolate({
                 inputRange: [-1, 1],
@@ -195,9 +195,9 @@ export const LearnaTree: React.FC<LearnaTreeProps> = ({
               width: size * 0.8,
               height: size * 0.8,
               borderRadius: size * 0.4,
-              opacity: 0.8 + glowAnim.interpolate({
+              opacity: glowAnim.interpolate({
                 inputRange: [0, 1],
-                outputRange: [0, 0.2],
+                outputRange: [0.8, 1],
               }),
             },
           ]}

@@ -133,7 +133,7 @@ function getMaxLength(ageGroup: AgeGroup): number {
   }
 }
 
-function checkSafety(message: string): { triggered: boolean; reason?: string } {
+export function checkSafety(message: string): { triggered: boolean; reason?: string } {
   const lower = message.toLowerCase();
 
   // Critical safety concerns - redirect to parent

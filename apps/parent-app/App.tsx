@@ -8,7 +8,7 @@ import {
   StyleSheet,
   Alert,
 } from 'react-native';
-import { supabase } from '../lib/supabase';
+import { supabase } from './lib/supabase';
 
 export default function ParentApp() {
   const [session, setSession] = useState(null);

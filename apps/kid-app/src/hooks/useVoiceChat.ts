@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { speak, stopSpeaking, isSpeaking } from '../services/speech';
-import { sendChatMessage, checkSafety } from '../services/chat';
+import { sendChatMessage } from '../services/chat';
+import { checkSafety } from '../services/ai';
 import { createConversation, saveMessage, endConversation } from '../services/supabase';
 import { Child, AgeGroup, Conversation } from '../types';
 import { Audio } from 'expo-av';
@@ -96,7 +97,7 @@ export const useVoiceChat = (
       await saveMessage(conv.id, 'child', text);
 
       // Check safety
-      const safety = await checkSafety(text, child.age_group);
+      const safety = await checkSafety(text);
       
       if (safety.triggered) {
         // Handle safety trigger - notify parent via Edge Function
@@ -109,7 +110,9 @@ export const useVoiceChat = (
         child.id,
         text,
         child.age_group,
-        conv.id
+        child.name,
+        conv.id,
+        [] // conversationHistory - would need proper history in production
       );
 
       // Save Learna's response

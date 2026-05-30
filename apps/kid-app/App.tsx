@@ -8,9 +8,10 @@ import {
   Dimensions,
 } from 'react-native';
 import { Audio } from 'expo-av';
-import { supabase } from '../lib/supabase';
-import { sendChatMessage } from '../services/chat';
-import { speak } from '../services/speech';
+import { AgeGroup } from './src/types';
+import { supabase } from './lib/supabase';
+import { sendChatMessage } from './src/services/chat';
+import { speak } from './src/services/speech';
 
 const { width } = Dimensions.get('window');
 
@@ -77,7 +78,7 @@ export default function KidApp() {
   const [childId, setChildId] = useState(null);
   const [conversationId, setConversationId] = useState(null);
   const [treeStage, setTreeStage] = useState(0); // 0: seed, 1: sprout, 2: sapling, 3: tree
-  const [ageGroup, setAgeGroup] = useState('young');
+  const [ageGroup, setAgeGroup] = useState<AgeGroup>('young');
 
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
